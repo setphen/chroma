@@ -1,0 +1,2 @@
+body,html{margin:0;padding:0;overflow:hidden}body{background-color:#ccc}.grid{display:grid;grid-gap:10px;grid-template-columns:33% 66%;height:100vh}#colorContainer{margin:auto}.gui{background-color:#000}.close-bottom{display:none!important}.dg{width:100%!important}@media (max-width:600px){.grid{grid-template-columns:100%}}
+/*# sourceMappingURL=main.css.map */

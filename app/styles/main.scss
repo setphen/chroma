@@ -1,0 +1,42 @@
+$primary : #4253d7;
+
+html, body{
+    //border: 10px solid $primary;
+    margin:0;
+    padding:0;
+    overflow:hidden;
+}
+
+body{
+    background-color: #cccccc;
+}
+
+.grid{
+    display: grid;
+    grid-gap: 10px;
+    grid-template-columns: 33% 66%;
+    height:100vh;
+}
+
+#colorContainer{
+    margin:auto;
+}
+
+.gui{
+    background-color: black;
+}
+
+//gui
+.close-bottom{
+    display:none !important;
+}
+
+.dg{
+    width:100% !important;
+}
+
+@media (max-width:600px) {
+    .grid{
+        grid-template-columns: 100%;
+    }
+}
