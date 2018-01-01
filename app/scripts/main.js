@@ -13,6 +13,7 @@ var colorUniforms = {
 	resolution: { value: new THREE.Vector2() },
 
 	segments: { value: 12 },
+	USE_LINEAR: { value: true },
 
 	topLeft: {value: new THREE.Vector3(0,0,0) },
 	topRight: {value: new THREE.Vector3(0,0,0) },
@@ -40,7 +41,7 @@ var geom = new THREE.PlaneGeometry(1,1);
 cube = new THREE.Mesh( geom, shaderMaterial );
 scene.add( cube );
 
-camera.position.z = 1;
+camera.position.z = 0.8;
 
 renderer.render( scene, camera );
 
@@ -90,7 +91,8 @@ var colors = {
 updateColorUniform();
 
 var params = {
-	segments: 7
+	segments: 7,
+	linearColor: true
 }
 
 var gui = new dat.GUI({autoPlace: false});
@@ -103,6 +105,9 @@ folder.addColor( colors, 'bottomRight').onChange(updateColorUniform);
 var folder = gui.addFolder( 'Parameters' );
 folder.add(params, 'segments' , 3, 9).step(1).onChange(function (value) {
 	shaderMaterial.uniforms.segments.value = value;
+})
+folder.add(params, 'linearColor').onChange(function (value) {
+	colorUniforms.USE_LINEAR.value = value;
 })
 folder.open();
 
