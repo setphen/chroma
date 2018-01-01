@@ -103,6 +103,7 @@ folder.addColor( colors, 'topLeft').onChange(updateColorUniform);
 folder.addColor( colors, 'topRight').onChange(updateColorUniform);
 folder.addColor( colors, 'bottomLeft').onChange(updateColorUniform);
 folder.addColor( colors, 'bottomRight').onChange(updateColorUniform);
+folder.open();
 var folder = gui.addFolder( 'Parameters' );
 folder.add(params, 'segments' , 3, 9).step(1).onChange(function (value) {
 	shaderMaterial.uniforms.segments.value = value;
