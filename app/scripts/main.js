@@ -1,8 +1,9 @@
 var THREE = require('three');
 var dat = require('./vendor/dat.gui.js');
+var ColorPicker = require('simple-color-picker');
 
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera( 75, 1, 0.1, 1000 );
+var camera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0.1, 1000 );
 
 var renderer = new THREE.WebGLRenderer({alpha: true});
 renderer.setSize( 400,400 );
@@ -30,18 +31,12 @@ var shaderMaterial = new THREE.ShaderMaterial( {
 } );
 
 var cube;
-//var loader = new THREE.JSONLoader();
-// loader.load( 'assets/test.json', function(geom){
-// 	cube = new THREE.Mesh( geom, shaderMaterial );
-// 	scene.add( cube );
-// 	animate();
-// });
 
-var geom = new THREE.PlaneGeometry(1,1);
+var geom = new THREE.PlaneGeometry(2,2);
 cube = new THREE.Mesh( geom, shaderMaterial );
 scene.add( cube );
 
-camera.position.z = 0.8;
+camera.position.z = 1;
 
 renderer.render( scene, camera );
 
@@ -58,62 +53,85 @@ function colorVector3(color) {
 	return new THREE.Vector3(c.r, c.g, c.b);
 }
 
-function updateColorUniform() {
-	colorUniforms.topLeft.value = colorVector3(colors.topLeft);
-	colorUniforms.topRight.value = colorVector3(colors.topRight);
-	colorUniforms.bottomLeft.value = colorVector3(colors.bottomLeft);
-	colorUniforms.bottomRight.value = colorVector3(colors.bottomRight);
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16)/256,
+        g: parseInt(result[2], 16)/256,
+        b: parseInt(result[3], 16)/256
+    } : null;
 }
 
-function changeHue(color, value) {
-	let c = colors.topLeft.getHSL();
-	colors.topLeft.setHSL(value, params.Saturation, params.Lightness);
+function updateColorUniform(colorVector, hex) {
+	let c = hexToRgb(hex);
+	colorVector.x = c.r;
+	colorVector.y = c.g;
+	colorVector.z = c.b;
 }
 
-function changeSat(color, value) {
-	let c = colors.topLeft.getHSL();
-	colors.topLeft.setHSL(params.Hue, value, params.Lightness);
+function CreatePicker(element, color, vector) {
+	let p = new ColorPicker({
+	  color: color,
+	  background: '#b6b6b6',
+	  el: element,
+	  width: 200,
+	  height: 200
+	});
+	p.onChange(function (v) {
+		updateColorUniform(vector.value, v);
+	})
 }
 
-function changeValue(color, value) {
-	let c = colors.topLeft.getHSL();
-	colors.topLeft.setHSL(params.Hue, params.Saturation, value);
-}
+CreatePicker(
+	document.getElementById('picker-topLeft'),
+	"#4ae8e8",
+	colorUniforms.topLeft);
+
+CreatePicker(
+	document.getElementById('picker-bottomLeft'),
+	"#4ae8e8",
+	colorUniforms.bottomLeft);
+
+CreatePicker(
+	document.getElementById('picker-topRight'),
+	"#4ae8e8",
+	colorUniforms.topRight);
+
+CreatePicker(
+	document.getElementById('picker-bottomRight'),
+	"#4ae8e8",
+	colorUniforms.bottomRight);
+
+document.getElementById('segment-slider').oninput = (function () {
+	colorUniforms.segments.value = this.value;
+});
+
+document.getElementById('linear-color').oninput = (function () {
+	colorUniforms.USE_LINEAR.value = this.checked;
+});
+
+// 	},
+// 	{
+// 		element:document.getElementById('picker-bottomLeft'),
+// 		vector:colorUniforms.bottomLeft
+// 	},
+// 	{
+// 		element:document.getElementById('picker-topRight'),
+// 		vector:colorUniforms.topRight
+// 	},
+// 	{
+// 		element:document.getElementById('picker-bottomRight'),
+// 		vector:colorUniforms.bottomRight
+// 	}
+// ];
 
 
-var colors = {
-	topLeft: "#4ae8e8",
-	topRight: "#7f17f5",
-	bottomLeft: "#b2f219",
-	bottomRight: "#e83131"
-};
 
-updateColorUniform();
-
-var params = {
-	segments: 7,
-	linearColor: true
-}
-
-var gui = new dat.GUI({autoPlace: false});
-window.gui = gui;
-var folder = gui.addFolder( 'Colors' );
-folder.addColor( colors, 'topLeft').onChange(updateColorUniform);
-folder.addColor( colors, 'topRight').onChange(updateColorUniform);
-folder.addColor( colors, 'bottomLeft').onChange(updateColorUniform);
-folder.addColor( colors, 'bottomRight').onChange(updateColorUniform);
-folder.open();
-var folder = gui.addFolder( 'Parameters' );
-folder.add(params, 'segments' , 3, 9).step(1).onChange(function (value) {
-	shaderMaterial.uniforms.segments.value = value;
-})
-folder.add(params, 'linearColor').onChange(function (value) {
-	colorUniforms.USE_LINEAR.value = value;
-})
-folder.open();
-
-document.getElementById('datGui').appendChild(gui.domElement);
-
+// var params = {
+// 	segments: 7,
+// 	linearColor: true
+// }
+//
 // window.onload = function() {
 //
 // };

@@ -1,10 +1,8 @@
-$primary : #4253d7;
+@import 'simple-color-picker.css';
 
 html, body{
-    //border: 10px solid $primary;
     margin:0;
     padding:0;
-    overflow:hidden;
 }
 
 body{
@@ -12,31 +10,93 @@ body{
 }
 
 .grid{
+    padding:60px;
     display: grid;
-    grid-gap: 10px;
-    grid-template-columns: 33% 66%;
+    grid-gap: 8px;
+    grid-template-columns: 230px auto 230px;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        'a b c'
+        'd b f';
+    box-sizing: border-box;
     height:100vh;
+    justify-content: space-between;
+
+    .bottom{
+        align-self: end;
+    }
+
+    #center{
+        height:100%;
+        grid-area: b;
+
+        #colorContainer{
+            margin: auto;
+        }
+
+        #controls{
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            justify-content: left;
+            padding-top:40px;
+
+            input{
+                box-sizing: border-box;
+            }
+
+            input[type=range]{
+                min-width: 100%;
+                max-width: 100%;
+            }
+            input[type=checkbox]{
+                width:26px;
+            }
+            .input{
+                grid-column: 2;
+                background-color:#ddd;
+            }
+            .label{
+                grid-column: 1;
+                background-color:#eee;
+            }
+
+            .input, .label{
+                padding:6px;
+                border-bottom: 1px solid white;
+            }
+        }
+    }
+
+    #picker-topLeft{
+        grid-area: a;
+    }
+
+    #picker-topRight{
+        grid-area: c;
+        margin-left: auto;
+        right:0;
+    }
+
+    #picker-bottomLeft{
+        grid-area: d;
+    }
+
+    #picker-bottomRight{
+        grid-area: f;
+        margin-left: auto;
+        right:0;
+    }
 }
 
 #colorContainer{
-    margin:auto;
+    display: inline-block;
+    canvas{
+        margin:auto;
+    }
 }
 
-.gui{
-    background-color: black;
-}
-
-//gui
-.close-bottom{
-    display:none !important;
-}
-
-.dg{
-    width:100% !important;
-}
-
-@media (max-width:600px) {
+@media (max-width:1000px) {
     .grid{
-        grid-template-columns: 100%;
+        padding: 6px;
     }
 }
