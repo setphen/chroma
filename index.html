@@ -2,6 +2,8 @@
 <html>
     <head>
         <meta charset="utf-8">
+        <!-- <meta name="viewport" content="initial-scale=1.0, user-scalable=no" /> -->
+
         <title>Chroma - phse.net</title>
         <link rel="stylesheet" type="text/css" href="styles/main.css">
     </head>
@@ -73,8 +75,22 @@
 
     <body>
         <div class="grid">
-            <div id="datGui" class="gui"></div>
-            <div id="colorContainer" class=""></div>
+
+                <div id="picker-topLeft" class="picker"></div>
+                <div id="picker-bottomLeft" class="picker bottom"></div>
+
+                <div id="center">
+                    <div id="colorContainer"></div>
+                    <div id="controls">
+                        <div class="label"># of Divisions</div>
+                        <div class="input"><input id="segment-slider" type="range" min="3" max="9" step="1"></div>
+                        <div class="label">Use Linear Color</div>
+                        <div class="input"><input id="linear-color" type="checkbox" checked></div>
+                    </div>
+                </div>
+
+                <div id="picker-topRight" class="picker"></div>
+                <div id="picker-bottomRight" class="picker bottom"></div>
 
         </div>
         <!-- always at the bottom -->
