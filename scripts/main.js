@@ -142,8 +142,9 @@ document.getElementById('segment-slider').oninput = (function () {
 	colorUniforms.segments.value = this.value;
 });
 
-document.getElementById('linear-color').oninput = (function () {
+document.getElementById('linear-color').onchange = (function () {
 	colorUniforms.USE_LINEAR.value = this.checked;
+	console.log(this.checked);
 });
 
 //MOUSE EVENTS
@@ -163,10 +164,10 @@ function copyHexCode(e){
 
 	try {
 	    var successful = document.execCommand('copy');
-	    var msg = successful ? 'successful' : 'unsuccessful';
-	    console.log('Copying text command was ' + msg);
+	    // var msg = successful ? 'successful' : 'unsuccessful';
+	    // console.log('Copying text command was ' + msg);
 	} catch (err) {
-		console.log('Oops, unable to copy');
+		console.log('Oops, unable to copy value');
 	}
 
 
