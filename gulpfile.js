@@ -65,6 +65,7 @@ var scripts = {
     .external(vendor_externals),
     build: function () {
         return scripts.b.bundle()
+            .on('error', swallowError)
             .pipe(source('main.js'))
             .pipe(buffer())
             .pipe(sourcemaps.init({loadMaps: true})) // loads map from browserify file
@@ -168,6 +169,12 @@ var assets = {
 gulp.task('build-assets', ['clean'], assets.build);
 gulp.task('watch-assets', ['browser-sync'], assets.watch);
 gulp.task('reload-assets', assets.reload);
+
+//swallow error
+function swallowError(err) {
+    $.util.log($.util.colors.red('[❗] ERROR: ' + err));
+    this.emit('end');
+}
 
 //deletes contents of dist
 gulp.task('clean', () =>

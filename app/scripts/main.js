@@ -2,18 +2,75 @@ var THREE = require('three');
 var dat = require('./vendor/dat.gui.js');
 var ColorPicker = require('simple-color-picker');
 
+var copyElement = document.createElement("textarea");
+copyElement.id = "hex-code";
+copyElement.setAttribute("readonly", true);
+document.body.appendChild(copyElement);
+
+//HELPERS
+function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
+}
+
+function CreatePicker(element, color, vector) {
+	let p = new ColorPicker({
+	  color: color,
+	  el: element,
+	  width: 200,
+	  height: 200
+	});
+
+	let h = document.createElement("textarea");
+	h.setAttribute("readonly", true);
+	element.appendChild(h);
+
+	p.onChange(function (v) {
+		h.innerHTML = v;
+		updateColorUniform(vector.value, v);
+	})
+}
+
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16)/256,
+        g: parseInt(result[2], 16)/256,
+        b: parseInt(result[3], 16)/256
+    } : null;
+}
+
+var rgbComponentToHex = function (rgb) {
+  var hex = Number(rgb).toString(16);
+  if (hex.length < 2) {
+       hex = "0" + hex;
+  }
+  return hex;
+};
+
+var rgbToHex = function(r,g,b) {
+  var red = rgbComponentToHex(r);
+  var green = rgbComponentToHex(g);
+  var blue = rgbComponentToHex(b);
+  return red+green+blue;
+};
+
+//THREE.JS
 var scene = new THREE.Scene();
 var camera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0.1, 1000 );
 
-var renderer = new THREE.WebGLRenderer({alpha: true});
+var renderer = new THREE.WebGLRenderer({alpha: true, preserveDrawingBuffer: true});
 renderer.setSize( 400,400 );
 renderer.setClearColor( 0xffffff, 0 );
-document.getElementById("colorContainer").appendChild( renderer.domElement );
+document.getElementById("matrix").appendChild( renderer.domElement );
 
 var colorUniforms = {
 	resolution: { value: new THREE.Vector2() },
 
-	segments: { value: 12 },
+	segments: { value: 6 },
 	USE_LINEAR: { value: true },
 
 	topLeft: {value: new THREE.Vector3(0,0,0) },
@@ -53,15 +110,6 @@ function colorVector3(color) {
 	return new THREE.Vector3(c.r, c.g, c.b);
 }
 
-function hexToRgb(hex) {
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16)/256,
-        g: parseInt(result[2], 16)/256,
-        b: parseInt(result[3], 16)/256
-    } : null;
-}
-
 function updateColorUniform(colorVector, hex) {
 	let c = hexToRgb(hex);
 	colorVector.x = c.r;
@@ -69,37 +117,24 @@ function updateColorUniform(colorVector, hex) {
 	colorVector.z = c.b;
 }
 
-function CreatePicker(element, color, vector) {
-	let p = new ColorPicker({
-	  color: color,
-	  background: '#b6b6b6',
-	  el: element,
-	  width: 200,
-	  height: 200
-	});
-	p.onChange(function (v) {
-		updateColorUniform(vector.value, v);
-	})
-}
-
 CreatePicker(
 	document.getElementById('picker-topLeft'),
-	"#4ae8e8",
+	"#dd8f25",
 	colorUniforms.topLeft);
 
 CreatePicker(
 	document.getElementById('picker-bottomLeft'),
-	"#4ae8e8",
+	"#0c9c9c",
 	colorUniforms.bottomLeft);
 
 CreatePicker(
 	document.getElementById('picker-topRight'),
-	"#4ae8e8",
+	"#c35598",
 	colorUniforms.topRight);
 
 CreatePicker(
 	document.getElementById('picker-bottomRight'),
-	"#4ae8e8",
+	"#26042d",
 	colorUniforms.bottomRight);
 
 document.getElementById('segment-slider').oninput = (function () {
@@ -110,28 +145,32 @@ document.getElementById('linear-color').oninput = (function () {
 	colorUniforms.USE_LINEAR.value = this.checked;
 });
 
-// 	},
-// 	{
-// 		element:document.getElementById('picker-bottomLeft'),
-// 		vector:colorUniforms.bottomLeft
-// 	},
-// 	{
-// 		element:document.getElementById('picker-topRight'),
-// 		vector:colorUniforms.topRight
-// 	},
-// 	{
-// 		element:document.getElementById('picker-bottomRight'),
-// 		vector:colorUniforms.bottomRight
-// 	}
-// ];
+//MOUSE EVENTS
+renderer.domElement.addEventListener("mousedown", copyHexCode, false);
+
+function copyHexCode(e){
+	let gl = renderer.getContext();
+	let p = new Uint8Array(4);
+	let pos = getMousePos(renderer.domElement, e)
+	gl.readPixels(pos.x, renderer.getSize().height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+	console.log(pos);
+	console.log(p);
+
+	copyElement.innerHTML = rgbToHex(p[0],p[1],p[2]); // the hex code
+	copyElement.select();
 
 
+	try {
+	    var successful = document.execCommand('copy');
+	    var msg = successful ? 'successful' : 'unsuccessful';
+	    console.log('Copying text command was ' + msg);
+	} catch (err) {
+		console.log('Oops, unable to copy');
+	}
 
-// var params = {
-// 	segments: 7,
-// 	linearColor: true
-// }
-//
+
+}
+
 // window.onload = function() {
 //
 // };
