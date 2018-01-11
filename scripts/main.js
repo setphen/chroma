@@ -3,10 +3,17 @@ var THREE = require('three');
 var ColorPicker = require('simple-color-picker');
 var shaders = require('./shaders.js');
 
+//Element to allow copying hex codes to clipboard
 var copyElement = document.createElement("textarea");
 copyElement.id = "hex-code";
 copyElement.setAttribute("readonly", true);
 document.body.appendChild(copyElement);
+copyMsg = false;
+
+//Element to allow copying hex codes to clipboard
+var hexElement = document.createElement("div");
+hexElement.id = "hoverhex";
+document.getElementById("colorContainer").appendChild(hexElement);
 
 //HELPERS
 function getMousePos(canvas, evt) {
@@ -149,18 +156,46 @@ document.getElementById('linear-color').onchange = (function () {
 
 //MOUSE EVENTS
 renderer.domElement.addEventListener("mousedown", copyHexCode, false);
+renderer.domElement.addEventListener("mousemove", updateHex, false);
+renderer.domElement.addEventListener("mouseover", showHex, false);
+renderer.domElement.addEventListener("mouseout", hideHex, false);
 
-function copyHexCode(e){
+function updateHex(e){
+    if (copyMsg){return;}
+    hexElement.innerHTML = "#" + getHexCode(e);
+}
+
+function showHex(){
+    if (copyMsg){return;}
+    hexElement.style.display = "block";
+}
+
+function hideHex(){
+    if (copyMsg){return;}
+    hexElement.style.display = "none";
+}
+
+//Grab color from canvas and copy the hex code to clipboard
+function getHexCode(e){
 	let gl = renderer.getContext();
 	let p = new Uint8Array(4);
 	let pos = getMousePos(renderer.domElement, e)
 	gl.readPixels(pos.x, renderer.getSize().height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+    return rgbToHex(p[0],p[1],p[2]);
+}
 
-	copyElement.innerHTML = rgbToHex(p[0],p[1],p[2]); // the hex code
+function copyHexCode(e){
+	copyElement.innerHTML = getHexCode(e); // the hex code
 	copyElement.select();
 
 	try {
 	    var successful = document.execCommand('copy');
+
+        copyMsg = true;
+        hexElement.innerHTML = "Copied!";
+        setTimeout(function () {
+            copyMsg = false;
+        }, 3000);
 	} catch (err) {
 		console.log('Unable to copy value');
 	}
