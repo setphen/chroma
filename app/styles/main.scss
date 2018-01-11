@@ -21,6 +21,15 @@ body{
     z-index: 99;
 }
 
+#hoverhex{
+    color: #222;
+    z-index: 90;
+    padding-top: 220px;
+    margin: auto;
+    text-align: center;
+    display: none;
+}
+
 textarea {
     resize: none;
     height:16px;
