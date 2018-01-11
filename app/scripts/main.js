@@ -1,6 +1,6 @@
 var THREE = require('three');
-var dat = require('./vendor/dat.gui.js');
 var ColorPicker = require('simple-color-picker');
+var shaders = require('./shaders.js');
 
 var copyElement = document.createElement("textarea");
 copyElement.id = "hex-code";
@@ -82,8 +82,8 @@ var colorUniforms = {
 var shaderMaterial = new THREE.ShaderMaterial( {
 
 	uniforms: colorUniforms,
-	vertexShader: document.getElementById( 'vertexProgram' ).textContent,
-	fragmentShader: document.getElementById( 'fragmentProgram' ).textContent
+	vertexShader: shaders.vertexShader,
+	fragmentShader: shaders.fragmentShader
 
 } );
 
@@ -154,24 +154,13 @@ function copyHexCode(e){
 	let p = new Uint8Array(4);
 	let pos = getMousePos(renderer.domElement, e)
 	gl.readPixels(pos.x, renderer.getSize().height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
-	console.log(pos);
-	console.log(p);
 
 	copyElement.innerHTML = rgbToHex(p[0],p[1],p[2]); // the hex code
 	copyElement.select();
 
-
 	try {
 	    var successful = document.execCommand('copy');
-	    // var msg = successful ? 'successful' : 'unsuccessful';
-	    // console.log('Copying text command was ' + msg);
 	} catch (err) {
-		console.log('Oops, unable to copy value');
+		console.log('Unable to copy value');
 	}
-
-
 }
-
-// window.onload = function() {
-//
-// };
