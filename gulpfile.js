@@ -18,7 +18,7 @@ gulp.task('browser-sync', ['build'], function () {
 });
 
 //SCRIPTS (Vendor JS)
-const vendor_externals = ['three']
+const vendor_externals = [];
 
 var vendors = {
     b: browserify({

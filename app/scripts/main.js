@@ -1,27 +1,21 @@
-var THREE = require('three');
+//npm modules
 var ColorPicker = require('simple-color-picker');
-var shaders = require('./shaders.js');
 
-//Element to allow copying hex codes to clipboard
+//local modules
+var glutils = require('./glutils.js');
+var colorutils = require('./colorutils.js');
+
+//Element target for copying hex to clipboard
 var copyElement = document.createElement("textarea");
 copyElement.id = "hex-code";
 copyElement.setAttribute("readonly", true);
 document.body.appendChild(copyElement);
-copyMsg = false;
+var copyMsg = false;
 
-//Element to allow copying hex codes to clipboard
+//Element displaying hex codes on rollover
 var hexElement = document.createElement("div");
 hexElement.id = "hoverhex";
 document.getElementById("colorContainer").appendChild(hexElement);
-
-//HELPERS
-function getMousePos(canvas, evt) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-      x: evt.clientX - rect.left,
-      y: evt.clientY - rect.top
-    };
-}
 
 function CreatePicker(element, color, vector) {
 	let p = new ColorPicker({
@@ -41,123 +35,157 @@ function CreatePicker(element, color, vector) {
 	})
 }
 
-function hexToRgb(hex) {
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16)/255,
-        g: parseInt(result[2], 16)/255,
-        b: parseInt(result[3], 16)/255
-    } : null;
+var canvas = document.getElementById("matrix-canvas");
+var gl = canvas.getContext("webgl", {preserveDrawingBuffer: true});
+
+var vertexShader = document.getElementById("vertPass").text;
+var fragmentShader = document.getElementById("fragColor").text;
+
+var vert = glutils.compileShader(gl, vertexShader, gl.VERTEX_SHADER);
+var frag = glutils.compileShader(gl, fragmentShader, gl.FRAGMENT_SHADER);
+var program = glutils.createProgram(gl, vert, frag);
+
+var uniforms = {
+	resolution:    { value: [canvas.width, canvas.height] },
+    gamma:           { value: 2.2 },
+	segments:      { value: 6 },
+	USE_LINEAR:    { value: true },
+
+	topLeft:       {value: {r:0, g:0, b:0} },
+	topRight:      {value: {r:0, g:0, b:0} },
+	bottomLeft:    {value: {r:0, g:0, b:0} },
+	bottomRight:   {value: {r:0, g:0, b:0} }
 }
 
-var rgbComponentToHex = function (rgb) {
-  var hex = Number(rgb).toString(16);
-  if (hex.length < 2) {
-       hex = "0" + hex;
-  }
-  return hex;
-};
+var positionAttributeLocation = gl.getAttribLocation(program, "position");
+var resolutionUniformLocation = gl.getUniformLocation(program, "resolution");
+var segmentsUniformLocation = gl.getUniformLocation(program, "segments");
+var gammaUniformLocation = gl.getUniformLocation(program, "gamma");
 
-var rgbToHex = function(r,g,b) {
-  var red = rgbComponentToHex(r);
-  var green = rgbComponentToHex(g);
-  var blue = rgbComponentToHex(b);
-  return red+green+blue;
-};
+var colorUniformLocations = [
+    {location:gl.getUniformLocation(program, "topLeft"),
+    value: uniforms.topLeft.value},
+    {location:gl.getUniformLocation(program, "topRight"),
+    value: uniforms.topRight.value},
+    {location:gl.getUniformLocation(program, "bottomLeft"),
+    value: uniforms.bottomLeft.value},
+    {location:gl.getUniformLocation(program, "bottomRight"),
+    value: uniforms.bottomRight.value},
+];
 
-//THREE.JS
-var scene = new THREE.Scene();
-var camera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0.1, 1000 );
+// Create a buffer
+var positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+      -1,  1,
+       1,  1,
+       1, -1,
+       1, -1,
+      -1, -1,
+      -1,  1]),
+    gl.STATIC_DRAW);
 
-var renderer = new THREE.WebGLRenderer({alpha: true, preserveDrawingBuffer: true});
-renderer.setSize( 400,400 );
-renderer.setClearColor( 0xffffff, 0 );
-document.getElementById("matrix").appendChild( renderer.domElement );
+function drawScene() {
 
-var colorUniforms = {
-	resolution: { value: new THREE.Vector2() },
+    // Tell WebGL how to convert from clip space to pixels
+    gl.viewport(0, 0, 400, 400);
 
-	segments: { value: 6 },
-	USE_LINEAR: { value: true },
+    // Clear the canvas.
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-	topLeft: {value: new THREE.Vector3(0,0,0) },
-	topRight: {value: new THREE.Vector3(0,0,0) },
-	bottomLeft: {value: new THREE.Vector3(0,0,0) },
-	bottomRight: {value: new THREE.Vector3(0,0,0) }
+    // Tell it to use our program (pair of shaders)
+    gl.useProgram(program);
+
+    gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+    gl.uniform1f(segmentsUniformLocation, uniforms.segments.value);
+    gl.uniform1f(gammaUniformLocation, uniforms.gamma.value);
+
+
+    colorUniformLocations.forEach(function (u) {
+        gl.uniform3f(u.location, u.value.r, u.value.g, u.value.b)
+    })
+
+    // Turn on the attribute
+    gl.enableVertexAttribArray(positionAttributeLocation);
+
+    // Bind the position buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        positionAttributeLocation, size, type, normalize, stride, offset)
+
+    // Draw the geometry.
+    var offset = 0;
+    var count = 6;
+    gl.drawArrays(gl.TRIANGLES, offset, count);
 }
-
-var shaderMaterial = new THREE.ShaderMaterial( {
-
-	uniforms: colorUniforms,
-	vertexShader: shaders.vertexShader,
-	fragmentShader: shaders.fragmentShader
-
-} );
-
-var cube;
-
-var geom = new THREE.PlaneGeometry(2,2);
-cube = new THREE.Mesh( geom, shaderMaterial );
-scene.add( cube );
-
-camera.position.z = 1;
-
-renderer.render( scene, camera );
 
 animate();
 
 function animate() {
-	requestAnimationFrame( animate );
 
-	renderer.render( scene, camera );
+    setTimeout( function() {
+        requestAnimationFrame( animate );
+    }, 1000 / 30 );
+
+    drawScene();
+
 }
 
-function colorVector3(color) {
-	let c = new THREE.Color(color);
-	return new THREE.Vector3(c.r, c.g, c.b);
-}
 
-function updateColorUniform(colorVector, hex) {
-	let c = hexToRgb(hex);
-	colorVector.x = c.r;
-	colorVector.y = c.g;
-	colorVector.z = c.b;
+function updateColorUniform(color, hex) {
+	var c = colorutils.hexToRgb(hex);
+	color.r = c.r;
+	color.g = c.g;
+	color.b = c.b;
 }
 
 CreatePicker(
 	document.getElementById('picker-topLeft'),
 	"#dd8f25",
-	colorUniforms.topLeft);
+	uniforms.topLeft);
 
 CreatePicker(
 	document.getElementById('picker-bottomLeft'),
 	"#0c9c9c",
-	colorUniforms.bottomLeft);
+	uniforms.bottomLeft);
 
 CreatePicker(
 	document.getElementById('picker-topRight'),
 	"#c35598",
-	colorUniforms.topRight);
+	uniforms.topRight);
 
 CreatePicker(
 	document.getElementById('picker-bottomRight'),
 	"#26042d",
-	colorUniforms.bottomRight);
+	uniforms.bottomRight);
 
 document.getElementById('segment-slider').oninput = (function () {
-	colorUniforms.segments.value = this.value;
+	uniforms.segments.value = this.value;
 });
 
-document.getElementById('linear-color').onchange = (function () {
-	colorUniforms.USE_LINEAR.value = this.checked;
-	console.log(this.checked);
+document.getElementById('gamma-slider').oninput = (function () {
+	uniforms.gamma.value = this.value;
 });
+
+// document.getElementById('linear-color').onchange = (function () {
+// 	uniforms.USE_LINEAR.value = this.checked;
+// 	console.log(this.checked);
+// });
 
 //MOUSE EVENTS
-renderer.domElement.addEventListener("mousedown", copyHexCode, false);
-renderer.domElement.addEventListener("mousemove", updateHex, false);
-renderer.domElement.addEventListener("mouseover", showHex, false);
-renderer.domElement.addEventListener("mouseout", hideHex, false);
+canvas.addEventListener("mousedown", copyHexCode, false);
+canvas.addEventListener("mousemove", updateHex, false);
+canvas.addEventListener("mouseover", showHex, false);
+canvas.addEventListener("mouseout", hideHex, false);
 
 function updateHex(e){
     if (copyMsg){return;}
@@ -174,13 +202,11 @@ function hideHex(){
     hexElement.style.display = "none";
 }
 
-//Grab color from canvas and copy the hex code to clipboard
 function getHexCode(e){
-	let gl = renderer.getContext();
 	let p = new Uint8Array(4);
-	let pos = getMousePos(renderer.domElement, e)
-	gl.readPixels(pos.x, renderer.getSize().height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
-    return rgbToHex(p[0],p[1],p[2]);
+	let pos = getMousePos(canvas, e)
+	gl.readPixels(pos.x, canvas.height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+    return colorutils.rgbToHex(p[0],p[1],p[2]);
 }
 
 function copyHexCode(e){
@@ -198,4 +224,12 @@ function copyHexCode(e){
 	} catch (err) {
 		console.log('Unable to copy value');
 	}
+}
+
+function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
 }

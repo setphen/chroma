@@ -1,28 +1,96 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var THREE = require('three');
-var ColorPicker = require('simple-color-picker');
-var shaders = require('./shaders.js');
+// tools for color converstions
+module.exports = {
 
-//Element to allow copying hex codes to clipboard
+    hexToRgb: function(hex) {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16)/255,
+            g: parseInt(result[2], 16)/255,
+            b: parseInt(result[3], 16)/255
+        } : null;
+    },
+
+    rgbComponentToHex: function (rgb) {
+        var hex = Number(rgb).toString(16);
+        if (hex.length < 2) {
+            hex = "0" + hex;
+        }
+        return hex;
+    },
+
+    rgbToHex: function(r,g,b) {
+        var red = module.exports.rgbComponentToHex(r);
+        var green = module.exports.rgbComponentToHex(g);
+        var blue = module.exports.rgbComponentToHex(b);
+        return red+green+blue;
+    }
+}
+
+},{}],2:[function(require,module,exports){
+//from https://webglfundamentals.org/webgl/lessons/webgl-boilerplate.html
+module.exports = {
+    compileShader: function(gl, shaderSource, shaderType) {
+        // Create the shader object
+        var shader = gl.createShader(shaderType);
+
+        // Set the shader source code.
+        gl.shaderSource(shader, shaderSource);
+
+        // Compile the shader
+        gl.compileShader(shader);
+
+        // Check if it compiled
+        var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        if (!success) {
+        // Something went wrong during compilation; get the error
+        throw "could not compile shader:" + gl.getShaderInfoLog(shader);
+        }
+
+        return shader;
+    },
+
+    createProgram: function (gl, vertexShader, fragmentShader) {
+        // create a program.
+        var program = gl.createProgram();
+
+        // attach the shaders.
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+
+        // link the program.
+        gl.linkProgram(program);
+
+        // Check if it linked.
+        var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+        if (!success) {
+          // something went wrong with the link
+          throw ("program filed to link:" + gl.getProgramInfoLog (program));
+        }
+
+        return program;
+    }
+}
+
+},{}],3:[function(require,module,exports){
+//npm modules
+var ColorPicker = require('simple-color-picker');
+
+//local modules
+var glutils = require('./glutils.js');
+var colorutils = require('./colorutils.js');
+
+//Element target for copying hex to clipboard
 var copyElement = document.createElement("textarea");
 copyElement.id = "hex-code";
 copyElement.setAttribute("readonly", true);
 document.body.appendChild(copyElement);
-copyMsg = false;
+var copyMsg = false;
 
-//Element to allow copying hex codes to clipboard
+//Element displaying hex codes on rollover
 var hexElement = document.createElement("div");
 hexElement.id = "hoverhex";
 document.getElementById("colorContainer").appendChild(hexElement);
-
-//HELPERS
-function getMousePos(canvas, evt) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-      x: evt.clientX - rect.left,
-      y: evt.clientY - rect.top
-    };
-}
 
 function CreatePicker(element, color, vector) {
 	let p = new ColorPicker({
@@ -42,123 +110,157 @@ function CreatePicker(element, color, vector) {
 	})
 }
 
-function hexToRgb(hex) {
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16)/255,
-        g: parseInt(result[2], 16)/255,
-        b: parseInt(result[3], 16)/255
-    } : null;
+var canvas = document.getElementById("matrix-canvas");
+var gl = canvas.getContext("webgl", {preserveDrawingBuffer: true});
+
+var vertexShader = document.getElementById("vertPass").text;
+var fragmentShader = document.getElementById("fragColor").text;
+
+var vert = glutils.compileShader(gl, vertexShader, gl.VERTEX_SHADER);
+var frag = glutils.compileShader(gl, fragmentShader, gl.FRAGMENT_SHADER);
+var program = glutils.createProgram(gl, vert, frag);
+
+var uniforms = {
+	resolution:    { value: [canvas.width, canvas.height] },
+    gamma:           { value: 2.2 },
+	segments:      { value: 6 },
+	USE_LINEAR:    { value: true },
+
+	topLeft:       {value: {r:0, g:0, b:0} },
+	topRight:      {value: {r:0, g:0, b:0} },
+	bottomLeft:    {value: {r:0, g:0, b:0} },
+	bottomRight:   {value: {r:0, g:0, b:0} }
 }
 
-var rgbComponentToHex = function (rgb) {
-  var hex = Number(rgb).toString(16);
-  if (hex.length < 2) {
-       hex = "0" + hex;
-  }
-  return hex;
-};
+var positionAttributeLocation = gl.getAttribLocation(program, "position");
+var resolutionUniformLocation = gl.getUniformLocation(program, "resolution");
+var segmentsUniformLocation = gl.getUniformLocation(program, "segments");
+var gammaUniformLocation = gl.getUniformLocation(program, "gamma");
 
-var rgbToHex = function(r,g,b) {
-  var red = rgbComponentToHex(r);
-  var green = rgbComponentToHex(g);
-  var blue = rgbComponentToHex(b);
-  return red+green+blue;
-};
+var colorUniformLocations = [
+    {location:gl.getUniformLocation(program, "topLeft"),
+    value: uniforms.topLeft.value},
+    {location:gl.getUniformLocation(program, "topRight"),
+    value: uniforms.topRight.value},
+    {location:gl.getUniformLocation(program, "bottomLeft"),
+    value: uniforms.bottomLeft.value},
+    {location:gl.getUniformLocation(program, "bottomRight"),
+    value: uniforms.bottomRight.value},
+];
 
-//THREE.JS
-var scene = new THREE.Scene();
-var camera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0.1, 1000 );
+// Create a buffer
+var positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+      -1,  1,
+       1,  1,
+       1, -1,
+       1, -1,
+      -1, -1,
+      -1,  1]),
+    gl.STATIC_DRAW);
 
-var renderer = new THREE.WebGLRenderer({alpha: true, preserveDrawingBuffer: true});
-renderer.setSize( 400,400 );
-renderer.setClearColor( 0xffffff, 0 );
-document.getElementById("matrix").appendChild( renderer.domElement );
+function drawScene() {
 
-var colorUniforms = {
-	resolution: { value: new THREE.Vector2() },
+    // Tell WebGL how to convert from clip space to pixels
+    gl.viewport(0, 0, 400, 400);
 
-	segments: { value: 6 },
-	USE_LINEAR: { value: true },
+    // Clear the canvas.
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-	topLeft: {value: new THREE.Vector3(0,0,0) },
-	topRight: {value: new THREE.Vector3(0,0,0) },
-	bottomLeft: {value: new THREE.Vector3(0,0,0) },
-	bottomRight: {value: new THREE.Vector3(0,0,0) }
+    // Tell it to use our program (pair of shaders)
+    gl.useProgram(program);
+
+    gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+    gl.uniform1f(segmentsUniformLocation, uniforms.segments.value);
+    gl.uniform1f(gammaUniformLocation, uniforms.gamma.value);
+
+
+    colorUniformLocations.forEach(function (u) {
+        gl.uniform3f(u.location, u.value.r, u.value.g, u.value.b)
+    })
+
+    // Turn on the attribute
+    gl.enableVertexAttribArray(positionAttributeLocation);
+
+    // Bind the position buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        positionAttributeLocation, size, type, normalize, stride, offset)
+
+    // Draw the geometry.
+    var offset = 0;
+    var count = 6;
+    gl.drawArrays(gl.TRIANGLES, offset, count);
 }
-
-var shaderMaterial = new THREE.ShaderMaterial( {
-
-	uniforms: colorUniforms,
-	vertexShader: shaders.vertexShader,
-	fragmentShader: shaders.fragmentShader
-
-} );
-
-var cube;
-
-var geom = new THREE.PlaneGeometry(2,2);
-cube = new THREE.Mesh( geom, shaderMaterial );
-scene.add( cube );
-
-camera.position.z = 1;
-
-renderer.render( scene, camera );
 
 animate();
 
 function animate() {
-	requestAnimationFrame( animate );
 
-	renderer.render( scene, camera );
+    setTimeout( function() {
+        requestAnimationFrame( animate );
+    }, 1000 / 30 );
+
+    drawScene();
+
 }
 
-function colorVector3(color) {
-	let c = new THREE.Color(color);
-	return new THREE.Vector3(c.r, c.g, c.b);
-}
 
-function updateColorUniform(colorVector, hex) {
-	let c = hexToRgb(hex);
-	colorVector.x = c.r;
-	colorVector.y = c.g;
-	colorVector.z = c.b;
+function updateColorUniform(color, hex) {
+	var c = colorutils.hexToRgb(hex);
+	color.r = c.r;
+	color.g = c.g;
+	color.b = c.b;
 }
 
 CreatePicker(
 	document.getElementById('picker-topLeft'),
 	"#dd8f25",
-	colorUniforms.topLeft);
+	uniforms.topLeft);
 
 CreatePicker(
 	document.getElementById('picker-bottomLeft'),
 	"#0c9c9c",
-	colorUniforms.bottomLeft);
+	uniforms.bottomLeft);
 
 CreatePicker(
 	document.getElementById('picker-topRight'),
 	"#c35598",
-	colorUniforms.topRight);
+	uniforms.topRight);
 
 CreatePicker(
 	document.getElementById('picker-bottomRight'),
 	"#26042d",
-	colorUniforms.bottomRight);
+	uniforms.bottomRight);
 
 document.getElementById('segment-slider').oninput = (function () {
-	colorUniforms.segments.value = this.value;
+	uniforms.segments.value = this.value;
 });
 
-document.getElementById('linear-color').onchange = (function () {
-	colorUniforms.USE_LINEAR.value = this.checked;
-	console.log(this.checked);
+document.getElementById('gamma-slider').oninput = (function () {
+	uniforms.gamma.value = this.value;
 });
+
+// document.getElementById('linear-color').onchange = (function () {
+// 	uniforms.USE_LINEAR.value = this.checked;
+// 	console.log(this.checked);
+// });
 
 //MOUSE EVENTS
-renderer.domElement.addEventListener("mousedown", copyHexCode, false);
-renderer.domElement.addEventListener("mousemove", updateHex, false);
-renderer.domElement.addEventListener("mouseover", showHex, false);
-renderer.domElement.addEventListener("mouseout", hideHex, false);
+canvas.addEventListener("mousedown", copyHexCode, false);
+canvas.addEventListener("mousemove", updateHex, false);
+canvas.addEventListener("mouseover", showHex, false);
+canvas.addEventListener("mouseout", hideHex, false);
 
 function updateHex(e){
     if (copyMsg){return;}
@@ -175,13 +277,11 @@ function hideHex(){
     hexElement.style.display = "none";
 }
 
-//Grab color from canvas and copy the hex code to clipboard
 function getHexCode(e){
-	let gl = renderer.getContext();
 	let p = new Uint8Array(4);
-	let pos = getMousePos(renderer.domElement, e)
-	gl.readPixels(pos.x, renderer.getSize().height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
-    return rgbToHex(p[0],p[1],p[2]);
+	let pos = getMousePos(canvas, e)
+	gl.readPixels(pos.x, canvas.height - pos.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+    return colorutils.rgbToHex(p[0],p[1],p[2]);
 }
 
 function copyHexCode(e){
@@ -201,59 +301,15 @@ function copyHexCode(e){
 	}
 }
 
-},{"./shaders.js":2,"simple-color-picker":12,"three":"three"}],2:[function(require,module,exports){
-module.exports = {
-    vertexShader : [
-        "uniform vec4 resolution;",
-        "uniform float segments;",
-        "varying vec2 vUv;",
-        "void main(){",
-            "vUv = uv;",
-            "gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);",
-        "}"
-    ].join( "\n" ),
-
-    fragmentShader : [
-        "uniform vec4 resolution;",
-        "uniform float segments;",
-        "uniform bool gammaFix;",
-        "uniform vec3 topLeft;",
-        "uniform vec3 topRight;",
-        "uniform vec3 bottomLeft;",
-        "uniform vec3 bottomRight;",
-        "varying vec2 vUv;",
-        "uniform bool USE_LINEAR;",
-        "vec3 toLinear(vec3 srgb) {",
-        "  return pow(srgb, vec3(2.2));",
-        "}",
-        "vec3 fromLinear(vec3 linear) {",
-        "  return pow(linear, vec3(1.0/2.2));",
-        "}",
-        "void main(){",
-        "vec3 c1 = topLeft;",
-        "    vec3 c2 = topRight;",
-        "    vec3 c3 = bottomLeft;",
-        "    vec3 c4 = bottomRight;",
-        "    if (USE_LINEAR) {",
-        "      c1 = toLinear(c1);",
-        "      c2 = toLinear(c2);",
-        "      c3 = toLinear(c3);",
-        "      c4 = toLinear(c4);",
-        "    }",
-        "float mixH = floor(vUv.x*segments)/(segments-1.0);",
-        "    float mixV = floor(vUv.y*segments)/(segments-1.0);",
-        "vec3 cTop = mix(c1, c2, mixH);",
-        "    vec3 cBottom = mix(c3, c4, mixH);",
-        "    vec3 cFinal = mix(cBottom, cTop, mixV);",
-        "if (USE_LINEAR) {",
-        "      cFinal = fromLinear(cFinal);",
-        "    }",
-        "gl_FragColor = vec4(cFinal, 1.0);",
-        "}"
-    ].join("\n")
+function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
 }
 
-},{}],3:[function(require,module,exports){
+},{"./colorutils.js":1,"./glutils.js":2,"simple-color-picker":13}],4:[function(require,module,exports){
 'use strict';
 
 var prefix = require('prefix');
@@ -392,7 +448,7 @@ function getPropertiesName() {
   });
 }
 
-},{"./lib/default-unit":4,"./lib/properties":5,"is-array":6,"prefix":9}],4:[function(require,module,exports){
+},{"./lib/default-unit":5,"./lib/properties":6,"is-array":7,"prefix":10}],5:[function(require,module,exports){
 'use strict';
 
 var trim = require('trim');
@@ -422,7 +478,7 @@ module.exports = function(value, unit, separator) {
   }).join(separator);
 };
 
-},{"trim":14}],5:[function(require,module,exports){
+},{"trim":15}],6:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -456,7 +512,7 @@ module.exports = {
   }
 };
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 
 /**
  * isArray
@@ -491,7 +547,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -514,7 +570,7 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var isBuffer = require('is-buffer');
 var toString = Object.prototype.toString;
 
@@ -632,7 +688,7 @@ module.exports = function kindOf(val) {
   return 'object';
 };
 
-},{"is-buffer":7}],9:[function(require,module,exports){
+},{"is-buffer":8}],10:[function(require,module,exports){
 // check document first so it doesn't error in node.js
 var style = typeof document != 'undefined'
   ? document.createElement('p').style
@@ -703,7 +759,7 @@ function prefixDashed(key){
 module.exports = prefixMemozied
 module.exports.dash = prefixDashed
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -868,7 +924,7 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /*!
  * is-number <https://github.com/jonschlinkert/is-number>
  *
@@ -892,7 +948,7 @@ module.exports = function isNumber(num) {
   return (num - num + 1) >= 0;
 };
 
-},{"kind-of":8}],12:[function(require,module,exports){
+},{"kind-of":9}],13:[function(require,module,exports){
 'use strict';
 
 (function() {
@@ -1296,7 +1352,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 })();
 
-},{"component-emitter":10,"dom-transform":3,"is-number":11,"tinycolor2":13}],13:[function(require,module,exports){
+},{"component-emitter":11,"dom-transform":4,"is-number":12,"tinycolor2":14}],14:[function(require,module,exports){
 // TinyColor v1.4.1
 // https://github.com/bgrins/TinyColor
 // Brian Grinstead, MIT License
@@ -2493,7 +2549,7 @@ else {
 
 })(Math);
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 
 exports = module.exports = trim;
 
@@ -2509,6 +2565,6 @@ exports.right = function(str){
   return str.replace(/\s*$/, '');
 };
 
-},{}]},{},[1])
+},{}]},{},[3])
 
 //# sourceMappingURL=main.js.map
