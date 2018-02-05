@@ -68,19 +68,21 @@
     </head>
 
     <body>
-        <div class="grid">
+        <div id="grid">
                 <div id="picker-topLeft" class="picker"></div>
                 <div id="picker-bottomLeft" class="picker bottom"></div>
                 <div id="picker-topRight" class="picker"></div>
                 <div id="picker-bottomRight" class="picker bottom"></div>
 
                 <div id="controls">
-                    <div class="label">Segments</div>
+                    <div class="label">Segments: <span id="segments-value"></span></div>
                     <div class="input"><input id="segment-slider" type="range" min="3" max="9" step="1"></div>
-                    <div class="label">Gamma</div>
+
+                    <div class="label">Gamma: <span id="gamma-value"></span></div>
                     <div class="input"><input id="gamma-slider" type="range" min="1.0" max="3.4" step="0.2"></div>
-                    <!-- <div class="label">Linear gamma</div>
-                    <div class="input"><input id="linear-color" type="checkbox" checked></div> -->
+
+                    <div class="label">Dark mode: <span id="dark-mode"></span></div>
+                    <div class="input"><input id="dark-mode-bool" type="checkbox" checked="true"></div>
                 </div>
 
                 <div id="colorContainer">
@@ -89,6 +91,35 @@
                     </div>
                 </div>
         </div>
+        <article>
+            <h1>Chroma</h1>
+            <p>
+                Chroma is a tool for exploring color theory, inspired by the
+                experiments of Bauhaus educator Josef Albers. Explore color by
+                controlling the four corners, and consider their relation and
+                combination.
+            </p>
+
+            <p>
+                One phenomenon to explore is <b>halation.</b> This is
+                when colors in an array appear to bleed into one another, creating
+                an effect beyond that of an individual color. You can see this concept
+                illustrated below.
+            </p>
+
+            <img src="assets/halation.png" alt="halation illustration">
+
+            <p>
+                The intermediary colors begin to appear as gradients, because of their
+                surroundings. Do you notice that each color appears more orange
+                at its left edge, and cyan at its right edge? Use the tool to explore
+                this idea and discover other properties of color.
+            </p>
+
+            <p>
+                © 2018 Stephen Lindberg
+            </p>
+        </article>
 
         <script src="scripts/main.js"></script>
     </body>
