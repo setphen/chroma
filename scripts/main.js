@@ -173,11 +173,12 @@ function drawScene() {
     // Tell it to use our program (pair of shaders)
     gl.useProgram(program);
 
+    // Set uniforms
     gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
     gl.uniform1f(segmentsUniformLocation, uniforms.segments.value);
     gl.uniform1f(gammaUniformLocation, uniforms.gamma.value);
 
-
+    // Set color uniforms to their respective color properties
     colorUniformLocations.forEach(function (u) {
         gl.uniform3f(u.location, u.value.r, u.value.g, u.value.b)
     })
@@ -225,36 +226,52 @@ function updateColorUniform(color, hex) {
 
 CreatePicker(
 	document.getElementById('picker-topLeft'),
-	"#dd8f25",
+	"#e7a142",
 	uniforms.topLeft);
 
 CreatePicker(
 	document.getElementById('picker-bottomLeft'),
-	"#0c9c9c",
+	"#e71e98",
 	uniforms.bottomLeft);
 
 CreatePicker(
 	document.getElementById('picker-topRight'),
-	"#c35598",
+	"#864ad7",
 	uniforms.topRight);
 
 CreatePicker(
 	document.getElementById('picker-bottomRight'),
-	"#26042d",
+	"#3bbdd4",
 	uniforms.bottomRight);
+
+
+document.getElementById('segments-value').innerHTML =
+uniforms.segments.value =
+document.getElementById('segment-slider').value;
+
+document.getElementById('gamma-value').innerHTML =
+uniforms.gamma.value =
+document.getElementById('gamma-slider').value;
+
+if (document.getElementById('dark-mode-bool').checked){
+	document.getElementById('grid').className = "dark";
+}else{
+	document.getElementById('grid').className = "";
+}
 
 document.getElementById('segment-slider').oninput = (function () {
 	uniforms.segments.value = this.value;
+    document.getElementById('segments-value').innerHTML = this.value;
 });
 
 document.getElementById('gamma-slider').oninput = (function () {
 	uniforms.gamma.value = this.value;
+    document.getElementById('gamma-value').innerHTML = this.value;
 });
 
-// document.getElementById('linear-color').onchange = (function () {
-// 	uniforms.USE_LINEAR.value = this.checked;
-// 	console.log(this.checked);
-// });
+document.getElementById('dark-mode-bool').oninput = (function () {
+	document.getElementById('grid').className = this.checked == true ? "dark" : "";
+});
 
 //MOUSE EVENTS
 canvas.addEventListener("mousedown", copyHexCode, false);
