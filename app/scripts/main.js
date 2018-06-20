@@ -17,6 +17,11 @@ var hexElement = document.createElement("div");
 hexElement.id = "hoverhex";
 document.getElementById("colorContainer").appendChild(hexElement);
 
+function isValidColorInput(i) {
+    return (i.startsWith("#") && i.length == 7)
+        || (!i.startsWith("#") && i.length == 6);
+}
+
 function CreatePicker(element, color, vector) {
 	let p = new ColorPicker({
 	  color: color,
@@ -25,12 +30,17 @@ function CreatePicker(element, color, vector) {
 	  height: 200
 	});
 
-	let h = document.createElement("textarea");
-	h.setAttribute("readonly", true);
+	let h = document.createElement("input");
+	h.type = "text";
+	h.maxLength = 7;
+	h.addEventListener("input", function(e) {
+		if (isValidColorInput(e.target.value)) {p.setColor(e.target.value);}
+	});
+
 	element.appendChild(h);
 
 	p.onChange(function (v) {
-		h.innerHTML = v;
+		h.value = v;
 		updateColorUniform(vector.value, v);
 	})
 }
