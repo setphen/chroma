@@ -1,4 +1,4 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 // tools for color converstions
 module.exports = {
 
@@ -92,6 +92,11 @@ var hexElement = document.createElement("div");
 hexElement.id = "hoverhex";
 document.getElementById("colorContainer").appendChild(hexElement);
 
+function isValidColorInput(i) {
+    return (i.startsWith("#") && i.length == 7)
+        || (!i.startsWith("#") && i.length == 6);
+}
+
 function CreatePicker(element, color, vector) {
 	let p = new ColorPicker({
 	  color: color,
@@ -100,12 +105,17 @@ function CreatePicker(element, color, vector) {
 	  height: 200
 	});
 
-	let h = document.createElement("textarea");
-	h.setAttribute("readonly", true);
+	let h = document.createElement("input");
+	h.type = "text";
+	h.maxLength = 7;
+	h.addEventListener("input", function(e) {
+		if (isValidColorInput(e.target.value)) {p.setColor(e.target.value);}
+	});
+
 	element.appendChild(h);
 
 	p.onChange(function (v) {
-		h.innerHTML = v;
+		h.value = v;
 		updateColorUniform(vector.value, v);
 	})
 }
@@ -327,456 +337,6 @@ function getMousePos(canvas, evt) {
 }
 
 },{"./colorutils.js":1,"./glutils.js":2,"simple-color-picker":13}],4:[function(require,module,exports){
-'use strict';
-
-var prefix = require('prefix');
-var isArray = require('is-array');
-var properties = require('./lib/properties');
-var applyDefaultUnit = require('./lib/default-unit');
-
-var _has = Object.prototype.hasOwnProperty;
-var transformProp = prefix('transform');
-var propNameAliases = {
-  x: 'translateX',
-  y: 'translateY',
-  z: 'translateZ',
-  origin: 'transformOrigin'
-};
-
-exports = module.exports = transform;
-function transform(target, opts) {
-  var transformOutput = [];
-  var propName;
-  var propValue;
-  var propData;
-
-  replaceAliases(opts);
-
-  for (propName in opts) {
-    if (!_has.call(opts, propName)) continue;
-
-    propValue = opts[propName];
-
-    // If it's a transform property.
-    if (_has.call(properties.transform, propName)) {
-      propData = properties.transform[propName];
-
-      if (isArray(propValue)) {
-        propValue = propValue.join(propData.separator);
-      }
-
-      transformOutput.push(
-        propName + '(' + applyDefaultUnit(
-          propValue,
-          propData.defaultUnit,
-          propData.separator
-        ) + ')'
-      );
-
-      continue;
-    }
-
-    // For other properties like transform-origin.
-    if (_has.call(properties, propName)) {
-      propData = properties[propName];
-
-      if (isArray(propValue)) {
-        propValue = propValue.join(propData.separator);
-      }
-
-      target.style[prefix(propName)] = applyDefaultUnit(
-        propValue,
-        propData.defaultUnit,
-        propData.separator
-      );
-
-      continue;
-    }
-
-    console.warn(
-      'dom-transform: this property (`' + propName + '`) is not supported.'
-    );
-  }
-
-  // Apply transform property values.
-  target.style[transformProp] = transformOutput.join(' ');
-}
-
-exports.get = get;
-function get(target, props) {
-  var s = target.style;
-
-  if (typeof props === 'string') {
-    if (_has.call(properties.transform, props)) {
-      return s[transformProp];
-    }
-
-    return s[prefix(props)];
-  }
-
-  if (!props) {
-    props = getPropertiesName();
-  }
-
-  var values = {};
-  props.forEach(function(propName) {
-    values[propName] = s[prefix(propName)];
-  });
-
-  return values;
-}
-
-exports.reset = reset;
-function reset(target, props) {
-  var s = target.style;
-
-  if (typeof props === 'string') {
-    s[prefix(props)] = null;
-    return;
-  }
-
-  if (!props) {
-    props = getPropertiesName();
-  }
-
-  props.forEach(function(propName) {
-    s[prefix(propName)] = null;
-  });
-}
-
-exports.isSupported = isSupported;
-function isSupported() {
-  return transformProp.length > 0;
-}
-
-function replaceAliases(obj) {
-  var propName;
-  for (propName in obj) {
-    if (_has.call(propNameAliases, propName)) {
-      obj[propNameAliases[propName]] = obj[propName];
-      delete obj[propName];
-    }
-  }
-}
-
-function getPropertiesName() {
-  return Object.keys(properties).map(function(propName) {
-    return propName;
-  });
-}
-
-},{"./lib/default-unit":5,"./lib/properties":6,"is-array":7,"prefix":10}],5:[function(require,module,exports){
-'use strict';
-
-var trim = require('trim');
-var NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
-
-module.exports = function(value, unit, separator) {
-  separator = separator || ',';
-
-  if (typeof value === 'number') {
-    return '' + value + unit;
-  }
-
-  // Allow to use either the defined separator or space
-  // to delimitate the values.
-  // Ex: '10 10' or '10, 10'.
-  var separatorRegExp = new RegExp(separator, 'g');
-  var values = value.split(separatorRegExp.test(value) ? separator : ' ');
-
-  return values.map(function(v) {
-    v = trim(v);
-
-    if (NUMBER_REGEX.test(v)) {
-      v += unit;
-    }
-
-    return v;
-  }).join(separator);
-};
-
-},{"trim":15}],6:[function(require,module,exports){
-'use strict';
-
-module.exports = {
-  transform: {
-    translate: {defaultUnit: 'px'},
-    translate3d: {defaultUnit: 'px'},
-    translateX: {defaultUnit: 'px'},
-    translateY: {defaultUnit: 'px'},
-    translateZ: {defaultUnit: 'px'},
-    scale: {defaultUnit: ''},
-    scale3d: {defaultUnit: ''},
-    scaleX: {defaultUnit: ''},
-    scaleY: {defaultUnit: ''},
-    scaleZ: {defaultUnit: ''},
-    rotate: {defaultUnit: 'deg'},
-    rotate3d: {defaultUnit: ''},
-    rotateX: {defaultUnit: 'deg'},
-    rotateY: {defaultUnit: 'deg'},
-    rotateZ: {defaultUnit: 'deg'},
-    skew: {defaultUnit: 'deg'},
-    skewX: {defaultUnit: 'deg'},
-    skewY: {defaultUnit: 'deg'},
-    perspective: {defaultUnit: 'px'},
-    matrix: {defaultUnit: ''},
-    matrix3d: {defaultUnit: ''}
-  },
-
-  transformOrigin: {
-    defaultUnit: 'px',
-    separator: ' '
-  }
-};
-
-},{}],7:[function(require,module,exports){
-
-/**
- * isArray
- */
-
-var isArray = Array.isArray;
-
-/**
- * toString
- */
-
-var str = Object.prototype.toString;
-
-/**
- * Whether or not the given `val`
- * is an array.
- *
- * example:
- *
- *        isArray([]);
- *        // > true
- *        isArray(arguments);
- *        // > false
- *        isArray('');
- *        // > false
- *
- * @param {mixed} val
- * @return {bool}
- */
-
-module.exports = isArray || function (val) {
-  return !! val && '[object Array]' == str.call(val);
-};
-
-},{}],8:[function(require,module,exports){
-/*!
- * Determine if an object is a Buffer
- *
- * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
- * @license  MIT
- */
-
-// The _isBuffer check is for Safari 5-7 support, because it's missing
-// Object.prototype.constructor. Remove this eventually
-module.exports = function (obj) {
-  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
-}
-
-function isBuffer (obj) {
-  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
-}
-
-// For Node v0.10 support. Remove this eventually.
-function isSlowBuffer (obj) {
-  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
-}
-
-},{}],9:[function(require,module,exports){
-var isBuffer = require('is-buffer');
-var toString = Object.prototype.toString;
-
-/**
- * Get the native `typeof` a value.
- *
- * @param  {*} `val`
- * @return {*} Native javascript type
- */
-
-module.exports = function kindOf(val) {
-  // primitivies
-  if (typeof val === 'undefined') {
-    return 'undefined';
-  }
-  if (val === null) {
-    return 'null';
-  }
-  if (val === true || val === false || val instanceof Boolean) {
-    return 'boolean';
-  }
-  if (typeof val === 'string' || val instanceof String) {
-    return 'string';
-  }
-  if (typeof val === 'number' || val instanceof Number) {
-    return 'number';
-  }
-
-  // functions
-  if (typeof val === 'function' || val instanceof Function) {
-    return 'function';
-  }
-
-  // array
-  if (typeof Array.isArray !== 'undefined' && Array.isArray(val)) {
-    return 'array';
-  }
-
-  // check for instances of RegExp and Date before calling `toString`
-  if (val instanceof RegExp) {
-    return 'regexp';
-  }
-  if (val instanceof Date) {
-    return 'date';
-  }
-
-  // other objects
-  var type = toString.call(val);
-
-  if (type === '[object RegExp]') {
-    return 'regexp';
-  }
-  if (type === '[object Date]') {
-    return 'date';
-  }
-  if (type === '[object Arguments]') {
-    return 'arguments';
-  }
-  if (type === '[object Error]') {
-    return 'error';
-  }
-
-  // buffer
-  if (isBuffer(val)) {
-    return 'buffer';
-  }
-
-  // es6: Map, WeakMap, Set, WeakSet
-  if (type === '[object Set]') {
-    return 'set';
-  }
-  if (type === '[object WeakSet]') {
-    return 'weakset';
-  }
-  if (type === '[object Map]') {
-    return 'map';
-  }
-  if (type === '[object WeakMap]') {
-    return 'weakmap';
-  }
-  if (type === '[object Symbol]') {
-    return 'symbol';
-  }
-
-  // typed arrays
-  if (type === '[object Int8Array]') {
-    return 'int8array';
-  }
-  if (type === '[object Uint8Array]') {
-    return 'uint8array';
-  }
-  if (type === '[object Uint8ClampedArray]') {
-    return 'uint8clampedarray';
-  }
-  if (type === '[object Int16Array]') {
-    return 'int16array';
-  }
-  if (type === '[object Uint16Array]') {
-    return 'uint16array';
-  }
-  if (type === '[object Int32Array]') {
-    return 'int32array';
-  }
-  if (type === '[object Uint32Array]') {
-    return 'uint32array';
-  }
-  if (type === '[object Float32Array]') {
-    return 'float32array';
-  }
-  if (type === '[object Float64Array]') {
-    return 'float64array';
-  }
-
-  // must be a plain object
-  return 'object';
-};
-
-},{"is-buffer":8}],10:[function(require,module,exports){
-// check document first so it doesn't error in node.js
-var style = typeof document != 'undefined'
-  ? document.createElement('p').style
-  : {}
-
-var prefixes = ['O', 'ms', 'Moz', 'Webkit']
-var upper = /([A-Z])/g
-var memo = {}
-
-/**
- * prefix `key`
- *
- *   prefix('transform') // => WebkitTransform
- *
- * @param {String} key
- * @return {String}
- * @api public
- */
-function prefix(key){
-  // Camel case
-  key = key.replace(/-([a-z])/g, function(_, char){
-    return char.toUpperCase()
-  })
-
-  // Without prefix
-  if (style[key] !== undefined) return key
-
-  // With prefix
-  var Key = key.charAt(0).toUpperCase() + key.slice(1)
-  var i = prefixes.length
-  while (i--) {
-    var name = prefixes[i] + Key
-    if (style[name] !== undefined) return name
-  }
-
-  return key
-}
-
-/**
- * Memoized version of `prefix`
- *
- * @param {String} key
- * @return {String}
- * @api public
- */
-function prefixMemozied(key){
-  return key in memo
-    ? memo[key]
-    : memo[key] = prefix(key)
-}
-
-/**
- * Create a dashed prefix
- *
- * @param {String} key
- * @return {String}
- * @api public
- */
-function prefixDashed(key){
-  key = prefix(key)
-  if (upper.test(key)) {
-    key = '-' + key.replace(upper, '-$1')
-    upper.lastIndex = 0
-  }
-  return key.toLowerCase()
-}
-
-module.exports = prefixMemozied
-module.exports.dash = prefixDashed
-
-},{}],11:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -941,6 +501,456 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
+},{}],5:[function(require,module,exports){
+'use strict';
+
+var prefix = require('prefix');
+var isArray = require('is-array');
+var properties = require('./lib/properties');
+var applyDefaultUnit = require('./lib/default-unit');
+
+var _has = Object.prototype.hasOwnProperty;
+var transformProp = prefix('transform');
+var propNameAliases = {
+  x: 'translateX',
+  y: 'translateY',
+  z: 'translateZ',
+  origin: 'transformOrigin'
+};
+
+exports = module.exports = transform;
+function transform(target, opts) {
+  var transformOutput = [];
+  var propName;
+  var propValue;
+  var propData;
+
+  replaceAliases(opts);
+
+  for (propName in opts) {
+    if (!_has.call(opts, propName)) continue;
+
+    propValue = opts[propName];
+
+    // If it's a transform property.
+    if (_has.call(properties.transform, propName)) {
+      propData = properties.transform[propName];
+
+      if (isArray(propValue)) {
+        propValue = propValue.join(propData.separator);
+      }
+
+      transformOutput.push(
+        propName + '(' + applyDefaultUnit(
+          propValue,
+          propData.defaultUnit,
+          propData.separator
+        ) + ')'
+      );
+
+      continue;
+    }
+
+    // For other properties like transform-origin.
+    if (_has.call(properties, propName)) {
+      propData = properties[propName];
+
+      if (isArray(propValue)) {
+        propValue = propValue.join(propData.separator);
+      }
+
+      target.style[prefix(propName)] = applyDefaultUnit(
+        propValue,
+        propData.defaultUnit,
+        propData.separator
+      );
+
+      continue;
+    }
+
+    console.warn(
+      'dom-transform: this property (`' + propName + '`) is not supported.'
+    );
+  }
+
+  // Apply transform property values.
+  target.style[transformProp] = transformOutput.join(' ');
+}
+
+exports.get = get;
+function get(target, props) {
+  var s = target.style;
+
+  if (typeof props === 'string') {
+    if (_has.call(properties.transform, props)) {
+      return s[transformProp];
+    }
+
+    return s[prefix(props)];
+  }
+
+  if (!props) {
+    props = getPropertiesName();
+  }
+
+  var values = {};
+  props.forEach(function(propName) {
+    values[propName] = s[prefix(propName)];
+  });
+
+  return values;
+}
+
+exports.reset = reset;
+function reset(target, props) {
+  var s = target.style;
+
+  if (typeof props === 'string') {
+    s[prefix(props)] = null;
+    return;
+  }
+
+  if (!props) {
+    props = getPropertiesName();
+  }
+
+  props.forEach(function(propName) {
+    s[prefix(propName)] = null;
+  });
+}
+
+exports.isSupported = isSupported;
+function isSupported() {
+  return transformProp.length > 0;
+}
+
+function replaceAliases(obj) {
+  var propName;
+  for (propName in obj) {
+    if (_has.call(propNameAliases, propName)) {
+      obj[propNameAliases[propName]] = obj[propName];
+      delete obj[propName];
+    }
+  }
+}
+
+function getPropertiesName() {
+  return Object.keys(properties).map(function(propName) {
+    return propName;
+  });
+}
+
+},{"./lib/default-unit":6,"./lib/properties":7,"is-array":8,"prefix":11}],6:[function(require,module,exports){
+'use strict';
+
+var trim = require('trim');
+var NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
+
+module.exports = function(value, unit, separator) {
+  separator = separator || ',';
+
+  if (typeof value === 'number') {
+    return '' + value + unit;
+  }
+
+  // Allow to use either the defined separator or space
+  // to delimitate the values.
+  // Ex: '10 10' or '10, 10'.
+  var separatorRegExp = new RegExp(separator, 'g');
+  var values = value.split(separatorRegExp.test(value) ? separator : ' ');
+
+  return values.map(function(v) {
+    v = trim(v);
+
+    if (NUMBER_REGEX.test(v)) {
+      v += unit;
+    }
+
+    return v;
+  }).join(separator);
+};
+
+},{"trim":15}],7:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  transform: {
+    translate: {defaultUnit: 'px'},
+    translate3d: {defaultUnit: 'px'},
+    translateX: {defaultUnit: 'px'},
+    translateY: {defaultUnit: 'px'},
+    translateZ: {defaultUnit: 'px'},
+    scale: {defaultUnit: ''},
+    scale3d: {defaultUnit: ''},
+    scaleX: {defaultUnit: ''},
+    scaleY: {defaultUnit: ''},
+    scaleZ: {defaultUnit: ''},
+    rotate: {defaultUnit: 'deg'},
+    rotate3d: {defaultUnit: ''},
+    rotateX: {defaultUnit: 'deg'},
+    rotateY: {defaultUnit: 'deg'},
+    rotateZ: {defaultUnit: 'deg'},
+    skew: {defaultUnit: 'deg'},
+    skewX: {defaultUnit: 'deg'},
+    skewY: {defaultUnit: 'deg'},
+    perspective: {defaultUnit: 'px'},
+    matrix: {defaultUnit: ''},
+    matrix3d: {defaultUnit: ''}
+  },
+
+  transformOrigin: {
+    defaultUnit: 'px',
+    separator: ' '
+  }
+};
+
+},{}],8:[function(require,module,exports){
+
+/**
+ * isArray
+ */
+
+var isArray = Array.isArray;
+
+/**
+ * toString
+ */
+
+var str = Object.prototype.toString;
+
+/**
+ * Whether or not the given `val`
+ * is an array.
+ *
+ * example:
+ *
+ *        isArray([]);
+ *        // > true
+ *        isArray(arguments);
+ *        // > false
+ *        isArray('');
+ *        // > false
+ *
+ * @param {mixed} val
+ * @return {bool}
+ */
+
+module.exports = isArray || function (val) {
+  return !! val && '[object Array]' == str.call(val);
+};
+
+},{}],9:[function(require,module,exports){
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+// The _isBuffer check is for Safari 5-7 support, because it's missing
+// Object.prototype.constructor. Remove this eventually
+module.exports = function (obj) {
+  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
+}
+
+function isBuffer (obj) {
+  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+}
+
+// For Node v0.10 support. Remove this eventually.
+function isSlowBuffer (obj) {
+  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
+}
+
+},{}],10:[function(require,module,exports){
+var isBuffer = require('is-buffer');
+var toString = Object.prototype.toString;
+
+/**
+ * Get the native `typeof` a value.
+ *
+ * @param  {*} `val`
+ * @return {*} Native javascript type
+ */
+
+module.exports = function kindOf(val) {
+  // primitivies
+  if (typeof val === 'undefined') {
+    return 'undefined';
+  }
+  if (val === null) {
+    return 'null';
+  }
+  if (val === true || val === false || val instanceof Boolean) {
+    return 'boolean';
+  }
+  if (typeof val === 'string' || val instanceof String) {
+    return 'string';
+  }
+  if (typeof val === 'number' || val instanceof Number) {
+    return 'number';
+  }
+
+  // functions
+  if (typeof val === 'function' || val instanceof Function) {
+    return 'function';
+  }
+
+  // array
+  if (typeof Array.isArray !== 'undefined' && Array.isArray(val)) {
+    return 'array';
+  }
+
+  // check for instances of RegExp and Date before calling `toString`
+  if (val instanceof RegExp) {
+    return 'regexp';
+  }
+  if (val instanceof Date) {
+    return 'date';
+  }
+
+  // other objects
+  var type = toString.call(val);
+
+  if (type === '[object RegExp]') {
+    return 'regexp';
+  }
+  if (type === '[object Date]') {
+    return 'date';
+  }
+  if (type === '[object Arguments]') {
+    return 'arguments';
+  }
+  if (type === '[object Error]') {
+    return 'error';
+  }
+
+  // buffer
+  if (isBuffer(val)) {
+    return 'buffer';
+  }
+
+  // es6: Map, WeakMap, Set, WeakSet
+  if (type === '[object Set]') {
+    return 'set';
+  }
+  if (type === '[object WeakSet]') {
+    return 'weakset';
+  }
+  if (type === '[object Map]') {
+    return 'map';
+  }
+  if (type === '[object WeakMap]') {
+    return 'weakmap';
+  }
+  if (type === '[object Symbol]') {
+    return 'symbol';
+  }
+
+  // typed arrays
+  if (type === '[object Int8Array]') {
+    return 'int8array';
+  }
+  if (type === '[object Uint8Array]') {
+    return 'uint8array';
+  }
+  if (type === '[object Uint8ClampedArray]') {
+    return 'uint8clampedarray';
+  }
+  if (type === '[object Int16Array]') {
+    return 'int16array';
+  }
+  if (type === '[object Uint16Array]') {
+    return 'uint16array';
+  }
+  if (type === '[object Int32Array]') {
+    return 'int32array';
+  }
+  if (type === '[object Uint32Array]') {
+    return 'uint32array';
+  }
+  if (type === '[object Float32Array]') {
+    return 'float32array';
+  }
+  if (type === '[object Float64Array]') {
+    return 'float64array';
+  }
+
+  // must be a plain object
+  return 'object';
+};
+
+},{"is-buffer":9}],11:[function(require,module,exports){
+// check document first so it doesn't error in node.js
+var style = typeof document != 'undefined'
+  ? document.createElement('p').style
+  : {}
+
+var prefixes = ['O', 'ms', 'Moz', 'Webkit']
+var upper = /([A-Z])/g
+var memo = {}
+
+/**
+ * prefix `key`
+ *
+ *   prefix('transform') // => WebkitTransform
+ *
+ * @param {String} key
+ * @return {String}
+ * @api public
+ */
+function prefix(key){
+  // Camel case
+  key = key.replace(/-([a-z])/g, function(_, char){
+    return char.toUpperCase()
+  })
+
+  // Without prefix
+  if (style[key] !== undefined) return key
+
+  // With prefix
+  var Key = key.charAt(0).toUpperCase() + key.slice(1)
+  var i = prefixes.length
+  while (i--) {
+    var name = prefixes[i] + Key
+    if (style[name] !== undefined) return name
+  }
+
+  return key
+}
+
+/**
+ * Memoized version of `prefix`
+ *
+ * @param {String} key
+ * @return {String}
+ * @api public
+ */
+function prefixMemozied(key){
+  return key in memo
+    ? memo[key]
+    : memo[key] = prefix(key)
+}
+
+/**
+ * Create a dashed prefix
+ *
+ * @param {String} key
+ * @return {String}
+ * @api public
+ */
+function prefixDashed(key){
+  key = prefix(key)
+  if (upper.test(key)) {
+    key = '-' + key.replace(upper, '-$1')
+    upper.lastIndex = 0
+  }
+  return key.toLowerCase()
+}
+
+module.exports = prefixMemozied
+module.exports.dash = prefixDashed
+
 },{}],12:[function(require,module,exports){
 /*!
  * is-number <https://github.com/jonschlinkert/is-number>
@@ -965,7 +975,7 @@ module.exports = function isNumber(num) {
   return (num - num + 1) >= 0;
 };
 
-},{"kind-of":9}],13:[function(require,module,exports){
+},{"kind-of":10}],13:[function(require,module,exports){
 'use strict';
 
 (function() {
@@ -1369,7 +1379,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 })();
 
-},{"component-emitter":11,"dom-transform":4,"is-number":12,"tinycolor2":14}],14:[function(require,module,exports){
+},{"component-emitter":4,"dom-transform":5,"is-number":12,"tinycolor2":14}],14:[function(require,module,exports){
 // TinyColor v1.4.1
 // https://github.com/bgrins/TinyColor
 // Brian Grinstead, MIT License
