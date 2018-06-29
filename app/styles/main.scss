@@ -14,17 +14,17 @@ html, body{
 }
 
 body{
-    font-family: "Source Sans Pro", sans-serif;
-    font-size: 1.2em;
     background-color: #fff;
     color:#555;
+    font-family: "Source Sans Pro", sans-serif;
+    font-size: 1.2em;
     margin-bottom:4em;
 }
 
 article{
-    max-width: 700px;
-    margin: auto;
     font-weight: 300;
+    margin: auto;
+    max-width: 700px;
     padding: 1.2em;
 
     img{
@@ -33,19 +33,19 @@ article{
 }
 
 #hex-code{
-    position: absolute;
     left: 0;
+    position: absolute;
     top: -100vh;
     z-index: 99;
 }
 
 #hoverhex{
     color: inherit;
-    z-index: 90;
-    margin: auto;
-    margin-top: 1em;
-    text-align: center;
     display: none;
+    margin-top: 1em;
+    margin: auto;
+    text-align: center;
+    z-index: 90;
 }
 
 #grid.dark{
@@ -61,35 +61,33 @@ article{
 
 #grid{
     background-color: inherit;
+    border-bottom: 1px solid;
+    border-color: #bbb;
+    box-sizing: border-box;
     color:inherit;
-    padding: 12px;
-    font-family: monospace;
     display: grid;
+    font-family: monospace;
     font-size: 0.9em;
     grid-gap: 4px;
-    grid-template-columns: 210px 210px 1fr;
-    grid-template-rows: 230px 230px 1fr;
     grid-template-areas:
         'a b c'
         'd e c'
         'f f c';
-    box-sizing: border-box;
-    // height:100vh;
+    grid-template-columns: 210px 210px 1fr;
+    grid-template-rows: 230px 230px 1fr;
     justify-content:space-between;
-
     padding-bottom: 2em;
-    border-bottom: 1px solid;
-    border-color: #bbb;
+    padding: 12px;
 
-    textarea {
-        resize: none;
-        height:16px;
-        width: 96%;
-        margin-top: 10px;
-        border: 0;
+    input {
         background-color: inherit;
+        border: 0;
         color: inherit;
+        height:16px;
+        margin-top: 10px;
         padding-left: 10px;
+        resize: none;
+        width: 96%;
     }
 
     #colorContainer{
@@ -108,11 +106,9 @@ article{
 
     #controls{
         display: grid;
+        grid-area: f;
         grid-template-columns: 1fr 2fr;
         justify-content: left;
-        grid-area: f;
-
-        //height:72px;
 
         input{
             box-sizing: border-box;
@@ -134,9 +130,9 @@ article{
         }
 
         .input, .label{
-            padding:10px;
-            border-top: 1px solid;
             border-color: #bbb;
+            border-top: 1px solid;
+            padding:10px;
         }
     }
 
